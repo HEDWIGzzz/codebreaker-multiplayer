@@ -1,1 +1,52 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeBreaker: ปริศนาสมการดีกรีสอง</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
 
+  <section id="join-panel" class="join-card">
+    <h1>🧩 CodeBreaker</h1>
+    <h2>ปริศนาสมการดีกรีสอง</h2>
+    <p>กรอกชื่อกลุ่มก่อนเริ่มเกม</p>
+
+    <label for="group-name">ชื่อกลุ่ม</label>
+    <input
+      id="group-name"
+      type="text"
+      maxlength="30"
+      placeholder="เช่น กลุ่มนักคณิต"
+      autocomplete="off"
+    >
+
+    <button id="join-button" type="button">เริ่มเกม</button>
+    <p id="join-message"></p>
+  </section>
+
+  <section id="game-panel" style="display: none;">
+    <header class="game-header">
+      <span>กลุ่ม: <strong id="group-name-display"></strong></span>
+      <span id="level-display">ด่าน 1</span>
+    </header>
+
+    <main class="game-card">
+      <h2 id="question-title">ด่านที่ 1: แก้สมการ</h2>
+
+      <p id="question-text">
+        จงหาค่า x ของสมการ: x² - 5x + 6 = 0
+      </p>
+
+      <input id="answer-input" type="text" placeholder="เช่น 2, 3">
+      <button id="check-answer-button">ตรวจคำตอบ</button>
+
+      <p id="game-message"></p>
+    </main>
+  </section>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
