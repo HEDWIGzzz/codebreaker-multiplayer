@@ -1,1 +1,242 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeBreaker | ตารางคะแนนหน้าห้อง</title>
 
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Noto Sans Thai", Tahoma, sans-serif;
+      color: #f8fafc;
+      background: linear-gradient(135deg, #0f172a, #1d4ed8);
+      padding: 40px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 4rem);
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: #bfdbfe;
+      font-size: 1.2rem;
+    }
+
+    #connection-status {
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: #334155;
+      font-weight: bold;
+    }
+
+    #connection-status.connected {
+      background: #15803d;
+    }
+
+    #connection-status.disconnected {
+      background: #b91c1c;
+    }
+
+    .board {
+      overflow: hidden;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      color: #172033;
+    }
+
+    th, td {
+      padding: 20px 24px;
+      text-align: left;
+      font-size: clamp(1rem, 2vw, 1.5rem);
+    }
+
+    th {
+      color: white;
+      background: #172554;
+      font-size: clamp(0.9rem, 1.5vw, 1.2rem);
+    }
+
+    tbody tr:nth-child(even) {
+      background: #eff6ff;
+    }
+
+    tbody tr {
+      transition: background 0.3s ease;
+    }
+
+    tbody tr:first-child td:first-child::before {
+      content: "🏆 ";
+    }
+
+    .level-badge, .status-badge {
+      display: inline-block;
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .level-badge {
+      color: #1e3a8a;
+      background: #dbeafe;
+    }
+
+    .status-badge.playing {
+      color: #1d4ed8;
+      background: #dbeafe;
+    }
+
+    .status-badge.unlocked {
+      color: #a16207;
+      background: #fef3c7;
+    }
+
+    .status-badge.finished {
+      color: #166534;
+      background: #dcfce7;
+    }
+
+    .empty {
+      padding: 60px 20px;
+      text-align: center;
+      color: #475569;
+      font-size: 1.4rem;
+    }
+
+    @media (max-width: 700px) {
+      body {
+        padding: 16px;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      th, td {
+        padding: 14px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🧩 CodeBreaker</h1>
+      <p class="subtitle">ตารางคะแนนปริศนาสมการดีกรีสอง</p>
+    </div>
+    <div id="connection-status" class="disconnected">กำลังเชื่อมต่อ...</div>
+  </header>
+
+  <main class="board">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>ชื่อกลุ่ม</th>
+          <th>ด่านปัจจุบัน</th>
+          <th>เวลาที่ใช้</th>
+          <th>สถานะ</th>
+          <th>ปลดล็อกแล้ว</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboard-body">
+        <tr>
+          <td class="empty" colspan="6">กำลังรอผู้เล่นเข้าร่วมเกม...</td>
+        </tr>
+      </tbody>
+    </table>
+  </main>
+
+  <script>
+    const socket = io();
+    const tableBody = document.getElementById("leaderboard-body");
+    const connectionStatus = document.getElementById("connection-status");
+
+    function escapeHtml(value) {
+      const div = document.createElement("div");
+      div.textContent = value;
+      return div.innerHTML;
+    }
+
+    function getStatusClass(status) {
+      if (status === "ผ่านครบทุกด่าน") return "finished";
+      if (status.includes("ปลดล็อก")) return "unlocked";
+      return "playing";
+    }
+
+    function renderLeaderboard(groups) {
+      if (!groups || groups.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td class="empty" colspan="6">
+              กำลังรอผู้เล่นเข้าร่วมเกม...
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tableBody.innerHTML = groups.map((group, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td><strong>${escapeHtml(group.group_name)}</strong></td>
+          <td>
+            <span class="level-badge">
+              ${group.status === "ผ่านครบทุกด่าน"
+                ? "จบเกม"
+                : `ด่าน ${group.current_level}`}
+            </span>
+          </td>
+          <td>${group.elapsed_text}</td>
+          <td>
+            <span class="status-badge ${getStatusClass(group.status)}">
+              ${escapeHtml(group.status)}
+            </span>
+          </td>
+          <td>${group.unlocked_levels.length} ด่าน</td>
+        </tr>
+      `).join("");
+    }
+
+    socket.on("connect", () => {
+      connectionStatus.textContent = "● เชื่อมต่อแล้ว";
+      connectionStatus.className = "connected";
+      socket.emit("request_leaderboard");
+    });
+
+    socket.on("disconnect", () => {
+      connectionStatus.textContent = "● การเชื่อมต่อขาดหาย";
+      connectionStatus.className = "disconnected";
+    });
+
+    socket.on("leaderboard_update", (groups) => {
+      renderLeaderboard(groups);
+    });
+  </script>
+</body>
+</html>
